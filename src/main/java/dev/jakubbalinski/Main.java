@@ -1,17 +1,49 @@
 package dev.jakubbalinski;
 
-//TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
-// click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
-public class Main {
-    static void main() {
-        //TIP Press <shortcut actionId="ShowIntentionActions"/> with your caret at the highlighted text
-        // to see how IntelliJ IDEA suggests fixing it.
-        IO.println(String.format("Hello and welcome!"));
+import dev.jakubbalinski.config.AppConfig;
+import dev.jakubbalinski.models.DrawResult;
+import dev.jakubbalinski.models.Member;
+import dev.jakubbalinski.services.DrawService;
+import dev.jakubbalinski.services.SendMailService;
+import dev.jakubbalinski.utils.FileReader;
 
-        for (int i = 1; i <= 5; i++) {
-            //TIP Press <shortcut actionId="Debug"/> to start debugging your code. We have set one <icon src="AllIcons.Debugger.Db_set_breakpoint"/> breakpoint
-            // for you, but you can always add more by pressing <shortcut actionId="ToggleLineBreakpoint"/>.
-            IO.println("i = " + i);
+import java.io.IOException;
+import java.util.List;
+
+class Main {
+
+    private static final String membersFile = "members.txt";
+
+    static void main() {
+        try {
+            AppConfig config = AppConfig.load();
+            DrawService drawService = new DrawService();
+            SendMailService sendMailService = new SendMailService(config.mailConfig());
+
+            System.out.println("Host: " + config.mailConfig().smtpHost());
+            System.out.println("Port: " + config.mailConfig().smtpPort());
+            System.out.println("Użytkownik: " + config.mailConfig().smtpUser());
+
+            System.out.println("Tryb testowy (dry run): " + config.dryRun());
+
+            List<Member> members = FileReader.readFile(membersFile);
+
+            List<DrawResult> drawResults = drawService.getDrawResults(members);
+
+            if (config.dryRun()) {
+                System.out.println("[DRY-RUN] Wiadomości nie zostaną wysłane.");
+
+                System.out.println("Wynik losowania: ");
+                drawResults.forEach(System.out::println);
+            } else {
+                sendMailService.sendDrawNotifications(drawResults);
+            }
+
+
+        } catch (IOException e) {
+            System.err.println("Błąd podczas ładowania konfiguracji: " + e.getMessage());
+        } catch (NumberFormatException e) {
+            System.err.println("Błędny format portu w pliku konfiguracyjnym: " + e.getMessage());
         }
     }
 }
