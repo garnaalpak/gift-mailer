@@ -1,4 +1,4 @@
-# 🎁 Gift Mailer
+# Gift Mailer
 
 Aplikacja do przeprowadzania losowania **Mikołajek** oraz automatycznej wysyłki powiadomień e-mail.
 
@@ -14,7 +14,7 @@ Aplikacja do przeprowadzania losowania **Mikołajek** oraz automatycznej wysyłk
 
 ---
 
-## 🛠️ Stack technologiczny
+## Stack technologiczny
 
 | Technologia | Opis |
 | :--- | :--- |
@@ -25,7 +25,7 @@ Aplikacja do przeprowadzania losowania **Mikołajek** oraz automatycznej wysyłk
 
 ---
 
-## 📂 Struktura projektu
+## Struktura projektu
 
 ```text
 gift-mailer/
@@ -49,7 +49,7 @@ gift-mailer/
 
 ---
 
-## ⚙️ Wymagania wstępne
+##  Wymagania wstępne
 
 - **JDK 21** lub nowszy
 - **Apache Maven** (lub wsparcie Mavena w IDE, np. IntelliJ IDEA)
@@ -57,7 +57,7 @@ gift-mailer/
 
 ---
 
-## 🔧 Konfiguracja
+## Konfiguracja
 
 Przed uruchomieniem aplikacji przygotuj dwa pliki w głównym katalogu projektu:
 
