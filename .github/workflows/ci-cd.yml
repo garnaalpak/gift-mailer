@@ -1,0 +1,115 @@
+name: CI/CD Pipeline (PR Check & Fat-JAR Release)
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  security-events: write
+
+env:
+  JAVA_VERSION: '26'
+  JAVA_DISTRIBUTION: 'temurin'
+  ARTIFACT_NAME: 'gift-mailer'
+
+jobs:
+  validate-and-verify:
+    name: Validate, Test & Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout kodu
+        uses: actions/checkout@v4
+
+      - name: Konfiguracja JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          cache: 'maven'
+
+      - name: Maven Validate
+        run: mvn validate --batch-mode --no-transfer-progress
+
+      - name: Maven Test & Verify
+        run: mvn test --batch-mode --no-transfer-progress
+
+      - name:  Trivy Vulnerability Scan (CVE Check)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'library'
+          severity: 'CRITICAL,HIGH'
+
+  release-fat-jar:
+    name: Build Fat-JAR & Publish Release
+    needs: validate-and-verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repozytorium (z pełną historią tagów)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Konfiguracja JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          cache: 'maven'
+
+      - name: Wyliczenie kolejnej wersji (v1.0.0 -> v1.0.1 -> v1.0.2)
+        id: semver
+        run: |
+          LATEST_TAG=$(git describe --tags $(git rev-list --tags --max-count=1) 2>/dev/null || echo "")
+          
+          if [ -z "$LATEST_TAG" ]; then
+            NEXT_TAG="v1.0.0"
+          else
+            VERSION=${LATEST_TAG#v}
+            MAJOR=$(echo $VERSION | cut -d. -f1)
+            MINOR=$(echo $VERSION | cut -d. -f2)
+            PATCH=$(echo $VERSION | cut -d. -f3)
+            NEXT_PATCH=$((PATCH + 1))
+            NEXT_TAG="v${MAJOR}.${MINOR}.${NEXT_PATCH}"
+          fi
+          
+          echo "tag=${NEXT_TAG}" >> $GITHUB_OUTPUT
+          echo "Nowa wersja Release: ${NEXT_TAG}"
+
+      - name: Budowanie pełnego Fat-JARa (Maven Package + Shade)
+        run: mvn clean package -DskipTests --batch-mode --no-transfer-progress
+
+      - name:  Zmiana nazwy pliku JAR pod wydanie
+        run: |
+          TAG="${{ steps.semver.outputs.tag }}"
+          # Kopiujemy zbudowany Fat-JAR pod ładną nazwę z wersją, np. gift-mailer-v1.0.0.jar
+          cp target/${{ env.ARTIFACT_NAME }}-1.0-SNAPSHOT.jar target/${{ env.ARTIFACT_NAME }}-${TAG}.jar
+          ls -lh target/${{ env.ARTIFACT_NAME }}-${TAG}.jar
+
+      - name: Publikacja GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.semver.outputs.tag }}
+          name: "🎁 Gift Mailer ${{ steps.semver.outputs.tag }}"
+          generate_release_notes: true
+          body: |
+            ## Wydanie Gift Mailer `${{ steps.semver.outputs.tag }}`
+            
+            Gotowy do uruchomienia **Fat-JAR** (zawiera wszystkie biblioteki w środku), zbudowany na **JDK ${{ env.JAVA_VERSION }}**.
+            
+            ### Jak odpalić?
+            ```bash
+            java -jar ${{ env.ARTIFACT_NAME }}-${{ steps.semver.outputs.tag }}.jar
+            ```
+          files: |
+            target/${{ env.ARTIFACT_NAME }}-${{ steps.semver.outputs.tag }}.jar
