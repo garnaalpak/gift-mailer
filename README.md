@@ -91,7 +91,7 @@ dry.run=true
 
 ---
 
-## ▶️ Uruchomienie
+## Uruchomienie
 
 ### Krok 1: Weryfikacja w trybie Dry-Run
 Upewnij się, że w `secrets.properties` masz ustawione:
